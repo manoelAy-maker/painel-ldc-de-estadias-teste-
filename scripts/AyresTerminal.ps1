@@ -52,8 +52,8 @@ function Get-ChangedFiles {
 
 function Assert-NoSensitiveFiles {
     $sensitive = @(Get-ChangedFiles | Where-Object {
-        $_ -match '(^|[\\/])\.env($|\.)' -or
-        $_ -match '\.(pem|pfx|key)$'
+        $_ -match '(^|[\\/\s])\.env($|\.)' -or
+        $_ -match '\.(pem|pfx|key)(\s|$)'
     })
 
     if ($sensitive.Count -gt 0) {
