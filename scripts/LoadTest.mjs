@@ -17,8 +17,8 @@ if (!['http:', 'https:'].includes(target.protocol)) {
 }
 
 const users = Number.parseInt(rawUsers, 10);
-if (!Number.isInteger(users) || users < 1 || users > 200) {
-  console.error('A quantidade deve ser um numero inteiro entre 1 e 200 usuarios.');
+if (!Number.isInteger(users) || users < 1 || users > 1_000) {
+  console.error('A quantidade deve ser um numero inteiro entre 1 e 1000 usuarios.');
   process.exit(2);
 }
 const durationSeconds = Number.parseInt(rawDurationSeconds, 10);
@@ -70,6 +70,7 @@ async function virtualUser(id) {
 console.log('\nAYRES // TESTE DE CAPACIDADE');
 console.log(`Alvo: ${target.href}`);
 console.log(`Carga: ${users} usuarios simultaneos por ${durationSeconds}s`);
+console.log(`Equivalencia planejada: ate ${Math.ceil(users / 10)} filiais com 10 funcionarios`);
 console.log('Operacao: somente leitura (GET)\n');
 await Promise.all(Array.from({ length: users }, (_, index) => virtualUser(index + 1)));
 
