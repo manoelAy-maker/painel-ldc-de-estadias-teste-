@@ -59,10 +59,44 @@ as $$
   )
 $$;
 
+create or replace function private.current_role()
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p.role
+  from public.profiles p
+  where p.id = (select auth.uid())
+    and p.ativo = true
+$$;
+
+create or replace function private.can_write()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (
+      select p.role in ('admin', 'gestor', 'operador') and p.ativo = true
+      from public.profiles p
+      where p.id = (select auth.uid())
+    ),
+    false
+  )
+$$;
+
 revoke all on function private.current_filial_id() from public, anon;
 revoke all on function private.is_admin() from public, anon;
+revoke all on function private.current_role() from public, anon;
+revoke all on function private.can_write() from public, anon;
 grant execute on function private.current_filial_id() to authenticated;
 grant execute on function private.is_admin() to authenticated;
+grant execute on function private.current_role() to authenticated;
+grant execute on function private.can_write() to authenticated;
 
 create or replace function private.touch_updated_at()
 returns trigger
@@ -97,6 +131,28 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function private.handle_new_user();
 
+create or replace function private.protect_record_ownership()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.created_by is distinct from old.created_by then
+    raise exception 'created_by não pode ser alterado';
+  end if;
+
+  if new.filial_id is distinct from old.filial_id
+     and not (select private.is_admin()) then
+    raise exception 'somente administradores podem alterar a filial';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function private.protect_record_ownership()
+  from public, anon, authenticated;
+
 create table public.estadias (
   id uuid primary key default gen_random_uuid(),
   filial_id uuid not null references public.filiais(id) on delete restrict,
@@ -108,22 +164,65 @@ create table public.estadias (
   prioridade text not null default 'normal'
     check (prioridade in ('normal', 'alta', 'urgente')),
   controle text,
+  chamado text,
+  motorista text,
+  transportadora text,
   lote text,
   nf text,
   cte text,
+  peso_toneladas numeric(12, 3)
+    check (peso_toneladas is null or peso_toneladas >= 0),
   emissao_cte timestamptz,
   descarga_em timestamptz,
+  tolerancia_horas integer not null default 48
+    check (tolerancia_horas between 0 and 720),
+  periodo_diaria_horas integer not null default 12
+    check (periodo_diaria_horas between 1 and 168),
   valor_diaria numeric(12, 2) check (valor_diaria is null or valor_diaria >= 0),
   fator numeric(8, 4) check (fator is null or fator >= 0),
+  valor_calculado numeric(14, 2)
+    check (valor_calculado is null or valor_calculado >= 0),
+  pago_por text,
   observacao text,
+  finalizado_by uuid references public.profiles(id) on delete restrict,
+  finalizado_at timestamptz,
   created_by uuid not null references public.profiles(id) on delete restrict,
   updated_by uuid not null references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
   constraint estadia_descarga_valida
-    check (descarga_em is null or emissao_cte is null or descarga_em >= emissao_cte)
+    check (descarga_em is null or emissao_cte is null or descarga_em >= emissao_cte),
+  constraint estadia_finalizacao_consistente
+    check (
+      (status <> 'finalizado' and finalizado_at is null and finalizado_by is null)
+      or (status = 'finalizado' and finalizado_at is not null and finalizado_by is not null)
+    )
 );
+
+create or replace function private.prepare_estadia()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.placa := upper(regexp_replace(new.placa, '[^A-Za-z0-9]', '', 'g'));
+
+  if new.status = 'finalizado'
+     and (tg_op = 'INSERT' or old.status is distinct from 'finalizado') then
+    new.finalizado_at := coalesce(new.finalizado_at, now());
+    new.finalizado_by := coalesce(new.finalizado_by, (select auth.uid()));
+  elsif new.status <> 'finalizado' then
+    new.finalizado_at := null;
+    new.finalizado_by := null;
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function private.prepare_estadia()
+  from public, anon, authenticated;
 
 create index estadias_filial_status_idx
   on public.estadias (filial_id, status)
@@ -206,17 +305,73 @@ create table public.anexos (
   filial_id uuid not null references public.filiais(id) on delete restrict,
   modulo text not null check (modulo in ('estadia', 'embarque', 'captacao')),
   registro_id uuid not null,
+  posicao smallint not null check (posicao in (1, 2)),
   nome_arquivo text not null,
   storage_path text not null unique,
   mime_type text,
   tamanho_bytes bigint check (tamanho_bytes is null or tamanho_bytes >= 0),
   created_by uuid not null references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   deleted_at timestamptz
 );
 
+create or replace function private.validate_anexo()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  registro_valido boolean;
+begin
+  if new.storage_path not like new.filial_id::text || '/%' then
+    raise exception 'o caminho do anexo deve começar pelo UUID da filial';
+  end if;
+
+  case new.modulo
+    when 'estadia' then
+      select exists (
+        select 1
+        from public.estadias e
+        where e.id = new.registro_id
+          and e.filial_id = new.filial_id
+          and e.deleted_at is null
+      ) into registro_valido;
+    when 'embarque' then
+      select exists (
+        select 1
+        from public.embarques e
+        where e.id = new.registro_id
+          and e.filial_id = new.filial_id
+          and e.deleted_at is null
+      ) into registro_valido;
+    when 'captacao' then
+      select exists (
+        select 1
+        from public.captacoes c
+        where c.id = new.registro_id
+          and c.filial_id = new.filial_id
+          and c.deleted_at is null
+      ) into registro_valido;
+  end case;
+
+  if not coalesce(registro_valido, false) then
+    raise exception 'registro do anexo não existe ou pertence a outra filial';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function private.validate_anexo()
+  from public, anon, authenticated;
+
 create index anexos_registro_idx
   on public.anexos (modulo, registro_id)
+  where deleted_at is null;
+create unique index anexos_registro_posicao_idx
+  on public.anexos (modulo, registro_id, posicao)
   where deleted_at is null;
 
 create table public.audit_logs (
@@ -285,12 +440,33 @@ revoke all on function private.write_audit_log() from public, anon, authenticate
 create trigger estadias_touch_updated_at
   before update on public.estadias
   for each row execute function private.touch_updated_at();
+create trigger estadias_prepare
+  before insert or update on public.estadias
+  for each row execute function private.prepare_estadia();
+create trigger estadias_protect_ownership
+  before update on public.estadias
+  for each row execute function private.protect_record_ownership();
 create trigger embarques_touch_updated_at
   before update on public.embarques
   for each row execute function private.touch_updated_at();
+create trigger embarques_protect_ownership
+  before update on public.embarques
+  for each row execute function private.protect_record_ownership();
 create trigger captacoes_touch_updated_at
   before update on public.captacoes
   for each row execute function private.touch_updated_at();
+create trigger captacoes_protect_ownership
+  before update on public.captacoes
+  for each row execute function private.protect_record_ownership();
+create trigger anexos_touch_updated_at
+  before update on public.anexos
+  for each row execute function private.touch_updated_at();
+create trigger anexos_validate
+  before insert or update on public.anexos
+  for each row execute function private.validate_anexo();
+create trigger anexos_protect_ownership
+  before update on public.anexos
+  for each row execute function private.protect_record_ownership();
 create trigger filiais_touch_updated_at
   before update on public.filiais
   for each row execute function private.touch_updated_at();
@@ -306,6 +482,9 @@ create trigger embarques_audit
   for each row execute function private.write_audit_log();
 create trigger captacoes_audit
   after insert or update or delete on public.captacoes
+  for each row execute function private.write_audit_log();
+create trigger anexos_audit
+  after insert or update or delete on public.anexos
   for each row execute function private.write_audit_log();
 
 alter table public.filiais enable row level security;
@@ -338,6 +517,10 @@ create policy profiles_select
   using (
     id = (select auth.uid())
     or (select private.is_admin())
+    or (
+      (select private.current_role()) = 'gestor'
+      and filial_id = (select private.current_filial_id())
+    )
   );
 
 create policy profiles_admin_insert
@@ -363,6 +546,8 @@ create policy estadias_branch_insert
   on public.estadias for insert
   to authenticated
   with check (
+    (select private.can_write())
+    and
     (
       filial_id = (select private.current_filial_id())
       or (select private.is_admin())
@@ -375,10 +560,15 @@ create policy estadias_branch_update
   on public.estadias for update
   to authenticated
   using (
-    filial_id = (select private.current_filial_id())
-    or (select private.is_admin())
+    (select private.can_write())
+    and (
+      filial_id = (select private.current_filial_id())
+      or (select private.is_admin())
+    )
   )
   with check (
+    (select private.can_write())
+    and
     (
       filial_id = (select private.current_filial_id())
       or (select private.is_admin())
@@ -398,6 +588,8 @@ create policy embarques_branch_insert
   on public.embarques for insert
   to authenticated
   with check (
+    (select private.can_write())
+    and
     (
       filial_id = (select private.current_filial_id())
       or (select private.is_admin())
@@ -410,10 +602,15 @@ create policy embarques_branch_update
   on public.embarques for update
   to authenticated
   using (
-    filial_id = (select private.current_filial_id())
-    or (select private.is_admin())
+    (select private.can_write())
+    and (
+      filial_id = (select private.current_filial_id())
+      or (select private.is_admin())
+    )
   )
   with check (
+    (select private.can_write())
+    and
     (
       filial_id = (select private.current_filial_id())
       or (select private.is_admin())
@@ -433,6 +630,8 @@ create policy captacoes_branch_insert
   on public.captacoes for insert
   to authenticated
   with check (
+    (select private.can_write())
+    and
     (
       filial_id = (select private.current_filial_id())
       or (select private.is_admin())
@@ -446,10 +645,15 @@ create policy captacoes_branch_update
   on public.captacoes for update
   to authenticated
   using (
-    filial_id = (select private.current_filial_id())
-    or (select private.is_admin())
+    (select private.can_write())
+    and (
+      filial_id = (select private.current_filial_id())
+      or (select private.is_admin())
+    )
   )
   with check (
+    (select private.can_write())
+    and
     (
       filial_id = (select private.current_filial_id())
       or (select private.is_admin())
@@ -469,6 +673,8 @@ create policy anexos_branch_insert
   on public.anexos for insert
   to authenticated
   with check (
+    (select private.can_write())
+    and
     (
       filial_id = (select private.current_filial_id())
       or (select private.is_admin())
@@ -480,12 +686,18 @@ create policy anexos_branch_update
   on public.anexos for update
   to authenticated
   using (
-    filial_id = (select private.current_filial_id())
-    or (select private.is_admin())
+    (select private.can_write())
+    and (
+      filial_id = (select private.current_filial_id())
+      or (select private.is_admin())
+    )
   )
   with check (
-    filial_id = (select private.current_filial_id())
-    or (select private.is_admin())
+    (select private.can_write())
+    and (
+      filial_id = (select private.current_filial_id())
+      or (select private.is_admin())
+    )
   );
 
 create policy audit_logs_branch_select
@@ -543,6 +755,7 @@ create policy storage_branch_insert
   to authenticated
   with check (
     bucket_id = 'ayres-anexos'
+    and (select private.can_write())
     and (
       (storage.foldername(name))[1] = (select private.current_filial_id())::text
       or (select private.is_admin())
@@ -554,6 +767,7 @@ create policy storage_branch_update
   to authenticated
   using (
     bucket_id = 'ayres-anexos'
+    and (select private.can_write())
     and (
       (storage.foldername(name))[1] = (select private.current_filial_id())::text
       or (select private.is_admin())
@@ -561,6 +775,7 @@ create policy storage_branch_update
   )
   with check (
     bucket_id = 'ayres-anexos'
+    and (select private.can_write())
     and (
       (storage.foldername(name))[1] = (select private.current_filial_id())::text
       or (select private.is_admin())
@@ -572,6 +787,7 @@ create policy storage_branch_delete
   to authenticated
   using (
     bucket_id = 'ayres-anexos'
+    and (select private.can_write())
     and (
       (storage.foldername(name))[1] = (select private.current_filial_id())::text
       or (select private.is_admin())
