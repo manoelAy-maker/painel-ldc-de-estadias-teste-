@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useState, type PropsWithChildren } from 'react'
 import { useAuth } from '../auth/AuthProvider'
+import { isSupabaseConfigured } from '../lib/supabase'
 import { AppLink, type AppPath } from '../router'
 import { AyresLogo } from './AyresLogo'
 
@@ -96,7 +97,7 @@ export function AppLayout({ children }: PropsWithChildren) {
           <div><strong>0</strong><span>Urgentes</span></div>
         </div>
 
-        <div className="cloud-status"><Cloud size={15} /><span><strong>Nuvem online</strong><small>Supabase conectado</small></span></div>
+        <div className={`cloud-status ${isSupabaseConfigured ? '' : 'cloud-status--local'}`}><Cloud size={15} /><span><strong>{isSupabaseConfigured ? 'Nuvem configurada' : 'Modo local'}</strong><small>{isSupabaseConfigured ? 'Supabase disponível' : 'Banco aguardando configuração'}</small></span></div>
 
         <div className="sidebar-footer">
           <div className="user-card">
@@ -133,8 +134,8 @@ export function AppLayout({ children }: PropsWithChildren) {
             <kbd>Ctrl K</kbd>
           </button>
           <div className="topbar-status">
-            <span className="online-dot" />
-            Sistema online
+            <span className={`online-dot ${isSupabaseConfigured ? '' : 'online-dot--local'}`} />
+            {isSupabaseConfigured ? 'Sistema configurado' : 'Modo local'}
           </div>
           <button className="icon-button" aria-label="Notificações">
             <Bell size={19} />
