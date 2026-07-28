@@ -17,7 +17,13 @@ function Set-AyresConsole {
 }
 
 function Test-LocalPanel {
-    return [bool](Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue)
+    try {
+        $response = Invoke-WebRequest -UseBasicParsing -Uri $LocalUrl -TimeoutSec 2 -ErrorAction Stop
+        return $response.StatusCode -ge 200 -and $response.StatusCode -lt 500
+    }
+    catch {
+        return $false
+    }
 }
 
 function Get-GitBranch {
@@ -111,7 +117,7 @@ function Assert-NoSensitiveFiles {
 
 function Install-Dependencies {
     Write-Host "`n  [>] Verificando dependencias..." -ForegroundColor Cyan
-    Invoke-External -Command 'npm.cmd' -Arguments @('--prefix', $ProjectPath, 'install')
+    Invoke-External -Command 'npm.cmd' -Arguments @('--prefix', $ProjectPath, 'install', '--prefer-offline', '--no-audit', '--no-fund')
 }
 
 function Update-Project {
@@ -135,22 +141,28 @@ function Start-LocalPanel {
         return
     }
 
+    $nodeModules = Join-Path $ProjectPath 'node_modules'
+    $lockFile = Join-Path $ProjectPath 'package-lock.json'
+    $lockHashBefore = if (Test-Path $lockFile) { (Get-FileHash -LiteralPath $lockFile -Algorithm SHA256).Hash } else { '' }
+
     $changes = Get-ChangedFiles
     if ($changes.Count -eq 0) {
         Write-Host "`n  [>] Sincronizando antes de iniciar..." -ForegroundColor Cyan
         & git -C $ProjectPath pull --ff-only
-        if ($LASTEXITCODE -eq 0) {
-            Install-Dependencies
-        }
-        else {
+        if ($LASTEXITCODE -ne 0) {
             Write-Host 'Nao foi possivel atualizar. Vou iniciar a versao local.' -ForegroundColor Yellow
         }
     }
-    elseif (-not (Test-Path (Join-Path $ProjectPath 'node_modules'))) {
+    else {
+        Write-Host 'Alteracoes locais detectadas; atualizacao automatica ignorada para protege-las.' -ForegroundColor Yellow
+    }
+
+    $lockHashAfter = if (Test-Path $lockFile) { (Get-FileHash -LiteralPath $lockFile -Algorithm SHA256).Hash } else { '' }
+    if (-not (Test-Path $nodeModules) -or $lockHashBefore -ne $lockHashAfter) {
         Install-Dependencies
     }
     else {
-        Write-Host 'Alteracoes locais detectadas; atualizacao automatica ignorada para protege-las.' -ForegroundColor Yellow
+        Write-Host '  [OK] Dependencias ja instaladas. Inicializacao rapida.' -ForegroundColor DarkGreen
     }
 
     if (Test-LocalPanel) {
@@ -160,12 +172,12 @@ function Start-LocalPanel {
     }
 
     $serverScript = Join-Path $PSScriptRoot 'StartLocalPanel.ps1'
-    $serverArguments = "-NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$serverScript`""
+    $serverArguments = "-NoExit -NoLogo -NoProfile -ExecutionPolicy Bypass -File `"$serverScript`""
     Start-Process -FilePath 'powershell.exe' -ArgumentList $serverArguments -WorkingDirectory $ProjectPath
 
     Write-Host "`n  [>] Inicializando servidor local em outra janela..." -ForegroundColor Cyan
     $ready = $false
-    for ($attempt = 0; $attempt -lt 30; $attempt++) {
+    for ($attempt = 0; $attempt -lt 60; $attempt++) {
         Start-Sleep -Milliseconds 500
         if (Test-LocalPanel) {
             $ready = $true
@@ -178,7 +190,9 @@ function Start-LocalPanel {
         Start-Process $LocalUrl
     }
     else {
-        Write-Host '  [AVISO] O servidor ainda esta iniciando. Confira a janela AYRES LOCAL SERVER.' -ForegroundColor Yellow
+        $logFile = Join-Path $ProjectPath 'AYRES-LOCAL-SERVER.log'
+        Write-Host '  [ERRO] O servidor nao respondeu em 30 segundos.' -ForegroundColor Red
+        Write-Host "  Confira a janela AYRES LOCAL SERVER ou o log: $logFile" -ForegroundColor Yellow
     }
 }
 
