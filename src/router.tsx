@@ -10,6 +10,7 @@ import {
 
 export type AppPath =
   | '/'
+  | '/dashboard'
   | '/estadias'
   | '/embarques'
   | '/captacao'
@@ -18,6 +19,7 @@ export type AppPath =
 
 const allowedPaths = new Set<AppPath>([
   '/',
+  '/dashboard',
   '/estadias',
   '/embarques',
   '/captacao',
