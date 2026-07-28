@@ -293,6 +293,29 @@ function Configure-Supabase {
     Write-Host "`n  [OK] Supabase configurado apenas neste computador." -ForegroundColor Green
 }
 
+
+function Invoke-LoadTest {
+    $target = Read-Host "Endereco para testar [$LocalUrl]"
+    if ([string]::IsNullOrWhiteSpace($target)) {
+        $target = $LocalUrl
+    }
+
+    if ($target -notmatch '^https?://') {
+        Write-Host 'Informe um endereco iniciado por http:// ou https://.' -ForegroundColor Red
+        return
+    }
+
+    if ($target -eq $LocalUrl -and -not (Test-LocalPanel)) {
+        Write-Host 'O painel local esta offline. Use a opcao 1 antes do teste.' -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host "`n  [>] Simulando 10 usuarios simultaneos por 15 segundos..." -ForegroundColor Cyan
+    Write-Host '  O teste faz apenas leituras e nao altera cadastros.' -ForegroundColor DarkGray
+    $loadTestScript = Join-Path $PSScriptRoot 'LoadTest.mjs'
+    Invoke-External -Command 'node' -Arguments @($loadTestScript, $target)
+}
+
 function Open-Project {
     if (Get-Command code -ErrorAction SilentlyContinue) {
         & code $ProjectPath
@@ -322,6 +345,9 @@ try {
         Write-Host '  [ CODEX AI ]' -ForegroundColor DarkCyan
         Write-Host '  [8] ABRIR CODEX AI NO PROJETO' -ForegroundColor Cyan
         Write-Host
+        Write-Host '  [ TESTE DE CAPACIDADE ]' -ForegroundColor DarkCyan
+        Write-Host '  [9] TESTAR 10 USUARIOS SIMULTANEOS' -ForegroundColor Magenta
+        Write-Host
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host
 
@@ -336,6 +362,7 @@ try {
                 '6' { Open-Project; Pause-Ayres }
                 '7' { Configure-Supabase; Pause-Ayres }
                 '8' { Open-Codex; Pause-Ayres }
+                '9' { Invoke-LoadTest; Pause-Ayres }
                 '0' { exit 0 }
                 default { Write-Host '  Opcao invalida.' -ForegroundColor Yellow; Start-Sleep -Seconds 1 }
             }
