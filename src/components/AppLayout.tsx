@@ -4,6 +4,7 @@ import {
   Building2,
   ChevronLeft,
   ClipboardList,
+  Cloud,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -15,14 +16,28 @@ import {
 import { useState, type PropsWithChildren } from 'react'
 import { useAuth } from '../auth/AuthProvider'
 import { AppLink, type AppPath } from '../router'
+import { AyresLogo } from './AyresLogo'
 
 const navigation = [
-  { to: '/' as AppPath, label: 'Visão geral', icon: LayoutDashboard },
-  { to: '/estadias' as AppPath, label: 'Estadias', icon: ClipboardList },
-  { to: '/embarques' as AppPath, label: 'Embarques', icon: Truck },
-  { to: '/captacao' as AppPath, label: 'Captação', icon: Users },
-  { to: '/relatorios' as AppPath, label: 'Relatórios', icon: BarChart3 },
-  { to: '/administracao' as AppPath, label: 'Administração', icon: ShieldCheck, admin: true },
+  {
+    label: 'Operação',
+    items: [
+      { to: '/dashboard' as AppPath, label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/estadias' as AppPath, label: 'Lançar estadia', icon: ClipboardList },
+      { to: '/embarques' as AppPath, label: 'Controle de embarque', icon: Truck },
+    ],
+  },
+  {
+    label: 'Comercial',
+    items: [{ to: '/captacao' as AppPath, label: 'Captação de veículos', icon: Users }],
+  },
+  {
+    label: 'Gestão',
+    items: [
+      { to: '/relatorios' as AppPath, label: 'Relatórios', icon: BarChart3 },
+      { to: '/administracao' as AppPath, label: 'Usuários e cargos', icon: ShieldCheck, admin: true },
+    ],
+  },
 ]
 
 export function AppLayout({ children }: PropsWithChildren) {
@@ -34,7 +49,7 @@ export function AppLayout({ children }: PropsWithChildren) {
     <div className={`app-shell ${collapsed ? 'app-shell--collapsed' : ''}`}>
       <aside className={`sidebar ${mobileOpen ? 'sidebar--open' : ''}`}>
         <div className="brand">
-          <div className="brand-mark">A</div>
+          <div className="brand-logo"><AyresLogo size={39} /></div>
           <div className="brand-copy">
             <strong>AYRES</strong>
             <span>LOGÍSTICA OPERACIONAL</span>
@@ -54,20 +69,34 @@ export function AppLayout({ children }: PropsWithChildren) {
         </div>
 
         <nav className="navigation" aria-label="Navegação principal">
-          {navigation
-            .filter((item) => !item.admin || profile?.role === 'admin')
-            .map(({ to, label, icon: Icon }) => (
-              <AppLink
-                key={to}
-                to={to}
-                onClick={() => setMobileOpen(false)}
-                className={(isActive) => (isActive ? 'nav-item nav-item--active' : 'nav-item')}
-              >
-                <Icon size={19} />
-                <span>{label}</span>
-              </AppLink>
-            ))}
+          {navigation.map((group) => (
+            <div className="nav-group" key={group.label}>
+              <span className="nav-group-label">{group.label}</span>
+              {group.items
+                .filter((item) => !item.admin || profile?.role === 'admin' || !profile)
+                .map(({ to, label, icon: Icon }) => (
+                  <AppLink
+                    key={to}
+                    to={to}
+                    onClick={() => setMobileOpen(false)}
+                    className={(isActive) => (isActive ? 'nav-item nav-item--active' : 'nav-item')}
+                  >
+                    <Icon size={18} />
+                    <span>{label}</span>
+                  </AppLink>
+                ))}
+            </div>
+          ))}
         </nav>
+
+        <div className="sidebar-today">
+          <span className="nav-group-label">Hoje</span>
+          <div><strong>0</strong><span>Lançadas</span></div>
+          <div><strong>0</strong><span>Pendentes</span></div>
+          <div><strong>0</strong><span>Urgentes</span></div>
+        </div>
+
+        <div className="cloud-status"><Cloud size={15} /><span><strong>Nuvem online</strong><small>Supabase conectado</small></span></div>
 
         <div className="sidebar-footer">
           <div className="user-card">
@@ -77,7 +106,7 @@ export function AppLayout({ children }: PropsWithChildren) {
               <span>{profile?.role ?? 'operador'}</span>
             </div>
           </div>
-          <button className="icon-button" onClick={() => void signOut()} aria-label="Sair">
+          <button className="icon-button" onClick={() => profile ? void signOut() : window.location.assign('/')} aria-label="Sair">
             <LogOut size={18} />
           </button>
         </div>
@@ -94,6 +123,10 @@ export function AppLayout({ children }: PropsWithChildren) {
           >
             <Menu size={20} />
           </button>
+          <div className="topbar-page">
+            <strong>Central logística</strong>
+            <span>Operação Ayres</span>
+          </div>
           <button className="search-button">
             <Search size={17} />
             <span>Buscar placa, motorista, lote ou CT-e</span>
@@ -106,6 +139,7 @@ export function AppLayout({ children }: PropsWithChildren) {
           <button className="icon-button" aria-label="Notificações">
             <Bell size={19} />
           </button>
+          <AppLink to="/" className="portal-return">Portal</AppLink>
         </header>
 
         <main className="page-content">
