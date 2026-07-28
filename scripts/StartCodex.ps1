@@ -24,10 +24,12 @@ if (-not $codex) {
     exit 1
 }
 
-& $codex.Source login status *> $null
+$codexPath = $codex.Source
+
+& $codexPath login status *> $null
 if ($LASTEXITCODE -ne 0) {
     Write-Host '  Primeiro acesso: entre com sua conta do ChatGPT no navegador.' -ForegroundColor Yellow
-    & $codex.Source login
+    & $codexPath login
     if ($LASTEXITCODE -ne 0) {
         Write-Host '  [ERRO] Nao foi possivel autenticar o Codex.' -ForegroundColor Red
         [void](Read-Host '  Pressione ENTER para fechar')
@@ -36,4 +38,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Set-Location $ProjectPath
-& $codex.Source --cd $ProjectPath --sandbox workspace-write --ask-for-approval on-request
+& $codexPath --cd $ProjectPath --sandbox workspace-write --ask-for-approval on-request
