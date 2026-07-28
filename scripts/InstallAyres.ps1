@@ -61,6 +61,12 @@ Write-Host "Destino: $InstallPath"
 Ensure-Command -Command 'git' -WingetId 'Git.Git' -DisplayName 'Git'
 Ensure-Command -Command 'node' -WingetId 'OpenJS.NodeJS.LTS' -DisplayName 'Node.js LTS'
 
+$nodeVersion = (& node --version).TrimStart('v')
+$nodeMajor = [int]($nodeVersion.Split('.')[0])
+if ($nodeMajor -lt 22) {
+    Stop-WithMessage "O Node.js $nodeVersion e antigo para este painel. Atualize para Node.js 22 LTS ou superior e rode o instalador novamente."
+}
+
 $parentPath = Split-Path -Parent $InstallPath
 New-Item -ItemType Directory -Path $parentPath -Force | Out-Null
 
