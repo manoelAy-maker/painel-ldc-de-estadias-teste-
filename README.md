@@ -42,8 +42,8 @@ O banco versionado está em `supabase/migrations`.
 
 ## AYRES Terminal no Windows
 
-O projeto inclui um terminal próprio para instalar, atualizar, executar,
-publicar e trabalhar no painel com o Codex AI.
+O projeto inclui um terminal próprio para instalar, atualizar, executar e
+publicar o painel.
 
 ### Primeira instalação
 
@@ -61,21 +61,15 @@ O instalador:
 
 ### Uso diário
 
-Abra `AYRES TERMINAL` para:
+Abra `AYRES TERMINAL` e escolha:
 
-- atualizar e iniciar o painel em `http://localhost:5173`;
-- manter o servidor local em uma janela independente e voltar ao menu;
+- atualizar e rodar o painel em `http://localhost:5173`;
 - atualizar o código do GitHub;
 - validar e publicar alterações;
 - consultar o status do Git;
 - executar testes e build;
 - abrir o projeto no VS Code;
-- reconfigurar a conexão local com o Supabase;
-- instalar e abrir o Codex AI diretamente na pasta do projeto.
-
-No primeiro uso da opção **Codex AI**, confirme `INSTALAR`. O terminal instala a
-CLI oficial `@openai/codex` e abre o login pelo navegador. Nenhuma chave da
-OpenAI é gravada no projeto.
+- reconfigurar a conexão local com o Supabase.
 
 Antes de publicar, o terminal mostra os arquivos alterados, bloqueia arquivos
 sensíveis, exige a confirmação `PUBLICAR` e só envia o commit depois que testes
