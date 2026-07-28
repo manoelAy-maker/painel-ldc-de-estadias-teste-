@@ -39,3 +39,38 @@ npm run build
 ```
 
 O banco versionado está em `supabase/migrations`.
+
+## AYRES Terminal no Windows
+
+O projeto inclui um terminal próprio para instalar, atualizar, executar e
+publicar o painel.
+
+### Primeira instalação
+
+1. Baixe `INSTALAR AYRES.cmd` pelo GitHub.
+2. Abra o arquivo no Windows.
+3. Informe a chave publicável do Supabase quando solicitado.
+
+O instalador:
+
+- instala Git e Node.js LTS pelo `winget`, se necessário;
+- baixa o painel em `Documentos\AYRES\painel-ldc-de-estadias`;
+- instala as dependências;
+- cria o `.env.local` somente no computador;
+- cria o atalho `AYRES TERMINAL` na Área de Trabalho.
+
+### Uso diário
+
+Abra `AYRES TERMINAL` e escolha:
+
+- rodar o painel em `http://localhost:5173`;
+- atualizar o código do GitHub;
+- validar e publicar alterações;
+- consultar o status do Git;
+- executar testes e build;
+- abrir o projeto no VS Code;
+- reconfigurar a conexão local com o Supabase.
+
+Antes de publicar, o terminal mostra os arquivos alterados, bloqueia arquivos
+sensíveis, exige a confirmação `PUBLICAR` e só envia o commit depois que testes
+e build forem aprovados.
