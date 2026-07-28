@@ -296,24 +296,45 @@ function Configure-Supabase {
 
 function Invoke-LoadTest {
     $target = Read-Host "Endereco para testar [$LocalUrl]"
-    if ([string]::IsNullOrWhiteSpace($target)) {
-        $target = $LocalUrl
-    }
-
+    if ([string]::IsNullOrWhiteSpace($target)) { $target = $LocalUrl }
     if ($target -notmatch '^https?://') {
         Write-Host 'Informe um endereco iniciado por http:// ou https://.' -ForegroundColor Red
         return
     }
-
     if ($target -eq $LocalUrl -and -not (Test-LocalPanel)) {
         Write-Host 'O painel local esta offline. Use a opcao 1 antes do teste.' -ForegroundColor Yellow
         return
     }
 
-    Write-Host "`n  [>] Simulando 10 usuarios simultaneos por 15 segundos..." -ForegroundColor Cyan
-    Write-Host '  O teste faz apenas leituras e nao altera cadastros.' -ForegroundColor DarkGray
+    $rawUsers = Read-Host 'Usuarios simultaneos [200] (1 a 200)'
+    if ([string]::IsNullOrWhiteSpace($rawUsers)) { $rawUsers = '200' }
+    $users = 0
+    if (-not [int]::TryParse($rawUsers, [ref]$users) -or $users -lt 1 -or $users -gt 200) {
+        Write-Host 'Informe um numero inteiro entre 1 e 200.' -ForegroundColor Red
+        return
+    }
+
+    $rawDuration = Read-Host 'Duracao em segundos [60] (5 a 300)'
+    if ([string]::IsNullOrWhiteSpace($rawDuration)) { $rawDuration = '60' }
+    $duration = 0
+    if (-not [int]::TryParse($rawDuration, [ref]$duration) -or $duration -lt 5 -or $duration -gt 300) {
+        Write-Host 'Informe uma duracao entre 5 e 300 segundos.' -ForegroundColor Red
+        return
+    }
+
+    if ($target -match '^https://' -and $users -ge 100) {
+        Write-Host "`n  Carga alta: $users usuarios por $duration segundos em URL publica." -ForegroundColor Yellow
+        $confirmation = Read-Host '  Digite TESTAR para confirmar que a URL e sua'
+        if ($confirmation -cne 'TESTAR') {
+            Write-Host '  Teste cancelado.' -ForegroundColor DarkGray
+            return
+        }
+    }
+
+    Write-Host "`n  [>] Simulando $users usuarios simultaneos por $duration segundos..." -ForegroundColor Cyan
+    Write-Host '  Leituras GET em intervalos controlados; nenhum cadastro sera alterado.' -ForegroundColor DarkGray
     $loadTestScript = Join-Path $PSScriptRoot 'LoadTest.mjs'
-    Invoke-External -Command 'node' -Arguments @($loadTestScript, $target)
+    Invoke-External -Command 'node' -Arguments @($loadTestScript, $target, [string]$users, [string]$duration) -AllowFailure
 }
 
 function Open-Project {
@@ -346,7 +367,7 @@ try {
         Write-Host '  [8] ABRIR CODEX AI NO PROJETO' -ForegroundColor Cyan
         Write-Host
         Write-Host '  [ TESTE DE CAPACIDADE ]' -ForegroundColor DarkCyan
-        Write-Host '  [9] TESTAR 10 USUARIOS SIMULTANEOS' -ForegroundColor Magenta
+        Write-Host '  [9] TESTAR CAPACIDADE (ATE 200 USUARIOS)' -ForegroundColor Magenta
         Write-Host
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host
