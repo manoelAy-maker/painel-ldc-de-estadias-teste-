@@ -89,8 +89,22 @@ function Start-LocalPanel {
         return
     }
 
-    if (-not (Test-Path (Join-Path $ProjectPath 'node_modules'))) {
+    $changes = Get-ChangedFiles
+    if ($changes.Count -eq 0) {
+        Write-Host "`nAtualizando antes de iniciar..." -ForegroundColor Cyan
+        & git -C $ProjectPath pull --ff-only
+        if ($LASTEXITCODE -eq 0) {
+            Install-Dependencies
+        }
+        else {
+            Write-Host 'Nao foi possivel atualizar agora. Vou iniciar a versao que esta no computador.' -ForegroundColor Yellow
+        }
+    }
+    elseif (-not (Test-Path (Join-Path $ProjectPath 'node_modules'))) {
         Install-Dependencies
+    }
+    else {
+        Write-Host 'Existem alteracoes locais; a atualizacao automatica foi pulada para protege-las.' -ForegroundColor Yellow
     }
 
     $existing = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue
@@ -200,7 +214,7 @@ try {
 
     while ($true) {
         Write-Header
-        Write-Host '[1] Rodar painel local' -ForegroundColor Green
+        Write-Host '[1] Atualizar e rodar painel local' -ForegroundColor Green
         Write-Host '[2] Atualizar do GitHub'
         Write-Host '[3] Publicar alteracoes no GitHub' -ForegroundColor Yellow
         Write-Host '[4] Ver status do Git'
