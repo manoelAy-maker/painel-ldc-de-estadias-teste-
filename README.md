@@ -63,7 +63,7 @@ O instalador:
 
 Abra `AYRES TERMINAL` e escolha:
 
-- rodar o painel em `http://localhost:5173`;
+- atualizar e rodar o painel em `http://localhost:5173`;
 - atualizar o código do GitHub;
 - validar e publicar alterações;
 - consultar o status do Git;
