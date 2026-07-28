@@ -69,7 +69,10 @@ Abra `AYRES TERMINAL` e escolha:
 - consultar o status do Git;
 - executar testes e build;
 - abrir o projeto no VS Code;
-- reconfigurar a conexão local com o Supabase.
+- reconfigurar a conexão local com o Supabase;
+- testar 10 usuários simultâneos no painel local ou em uma URL autorizada.
+
+O teste de capacidade dura 15 segundos, faz somente requisições de leitura e mostra taxa de falhas, tempo médio, P95, pior resposta e um diagnóstico final.
 
 Antes de publicar, o terminal mostra os arquivos alterados, bloqueia arquivos
 sensíveis, exige a confirmação `PUBLICAR` e só envia o commit depois que testes
