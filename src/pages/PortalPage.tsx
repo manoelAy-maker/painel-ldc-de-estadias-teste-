@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { AyresLogo } from '../components/AyresLogo'
 import { useAuth } from '../auth/AuthProvider'
+import { isSupabaseConfigured } from '../lib/supabase'
 import { useAppRouter, type AppPath } from '../router'
 
 const modules: Array<{
@@ -80,7 +81,7 @@ export function PortalPage() {
           </div>
         </div>
         <div className="portal-userbar">
-          <span className="portal-online"><i /> Sistema online</span>
+          <span className={`portal-online ${isSupabaseConfigured ? '' : 'portal-online--local'}`}><i /> {isSupabaseConfigured ? 'Sistema configurado' : 'Modo local'}</span>
           <button className="portal-user"><span>MA</span><strong>{firstName}</strong><Settings size={16} /></button>
         </div>
         </header>
