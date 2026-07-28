@@ -306,11 +306,12 @@ function Invoke-LoadTest {
         return
     }
 
-    $rawUsers = Read-Host 'Usuarios simultaneos [200] (1 a 200)'
+    Write-Host '  Degraus sugeridos: 50, 200, 500 e 1000 usuarios.' -ForegroundColor DarkGray
+    $rawUsers = Read-Host 'Usuarios simultaneos [200] (1 a 1000)'
     if ([string]::IsNullOrWhiteSpace($rawUsers)) { $rawUsers = '200' }
     $users = 0
-    if (-not [int]::TryParse($rawUsers, [ref]$users) -or $users -lt 1 -or $users -gt 200) {
-        Write-Host 'Informe um numero inteiro entre 1 e 200.' -ForegroundColor Red
+    if (-not [int]::TryParse($rawUsers, [ref]$users) -or $users -lt 1 -or $users -gt 1000) {
+        Write-Host 'Informe um numero inteiro entre 1 e 1000.' -ForegroundColor Red
         return
     }
 
@@ -327,6 +328,15 @@ function Invoke-LoadTest {
         $confirmation = Read-Host '  Digite TESTAR para confirmar que a URL e sua'
         if ($confirmation -cne 'TESTAR') {
             Write-Host '  Teste cancelado.' -ForegroundColor DarkGray
+            return
+        }
+    }
+
+    if ($users -gt 500) {
+        Write-Host "`n  TESTE EXTREMO: a carga pode atingir limites da hospedagem e do seu plano." -ForegroundColor Red
+        $extremeConfirmation = Read-Host '  Digite CARGA EXTREMA para continuar'
+        if ($extremeConfirmation -cne 'CARGA EXTREMA') {
+            Write-Host '  Teste extremo cancelado.' -ForegroundColor DarkGray
             return
         }
     }
@@ -367,7 +377,7 @@ try {
         Write-Host '  [8] ABRIR CODEX AI NO PROJETO' -ForegroundColor Cyan
         Write-Host
         Write-Host '  [ TESTE DE CAPACIDADE ]' -ForegroundColor DarkCyan
-        Write-Host '  [9] TESTAR CAPACIDADE (ATE 200 USUARIOS)' -ForegroundColor Magenta
+        Write-Host '  [9] TESTAR CAPACIDADE (ATE 1000 USUARIOS)' -ForegroundColor Magenta
         Write-Host
         Write-Host '  [0] Sair' -ForegroundColor DarkGray
         Write-Host
