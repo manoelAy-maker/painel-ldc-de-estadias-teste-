@@ -10,8 +10,6 @@ import {
   Menu,
   Search,
   ShieldCheck,
-  Truck,
-  Users,
 } from 'lucide-react'
 import { useState, type PropsWithChildren } from 'react'
 import { useAuth } from '../auth/AuthProvider'
@@ -24,13 +22,8 @@ const navigation = [
     label: 'Operação',
     items: [
       { to: '/dashboard' as AppPath, label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/estadias' as AppPath, label: 'Lançar estadia', icon: ClipboardList },
-      { to: '/embarques' as AppPath, label: 'Controle de embarque', icon: Truck },
+      { to: '/estadias' as AppPath, label: 'Controle de estadias', icon: ClipboardList },
     ],
-  },
-  {
-    label: 'Comercial',
-    items: [{ to: '/captacao' as AppPath, label: 'Captação de veículos', icon: Users }],
   },
   {
     label: 'Gestão',
@@ -53,7 +46,7 @@ export function AppLayout({ children }: PropsWithChildren) {
           <div className="brand-logo"><AyresLogo size={39} /></div>
           <div className="brand-copy">
             <strong>AYRES</strong>
-            <span>LOGÍSTICA OPERACIONAL</span>
+            <span>GESTÃO DE ESTADIAS</span>
           </div>
           <button
             className="icon-button collapse-button"
@@ -125,7 +118,7 @@ export function AppLayout({ children }: PropsWithChildren) {
             <Menu size={20} />
           </button>
           <div className="topbar-page">
-            <strong>Central logística</strong>
+            <strong>Central de estadias</strong>
             <span>Operação Ayres</span>
           </div>
           <button className="search-button">
