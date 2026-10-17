@@ -5,8 +5,6 @@ import {
   Clock3,
   Settings,
   ShieldCheck,
-  Truck,
-  Users,
 } from 'lucide-react'
 import { AyresLogo } from '../components/AyresLogo'
 import { useAuth } from '../auth/AuthProvider'
@@ -31,24 +29,6 @@ const modules: Array<{
     path: '/estadias',
     tone: 'blue',
     icon: ClipboardList,
-  },
-  {
-    title: 'Controle de Embarque',
-    label: 'Programação',
-    description: 'Programação de veículos no formato de planilha usado pela operação.',
-    details: ['Agendamentos', 'Lotes', 'Carregamentos'],
-    path: '/embarques',
-    tone: 'orange',
-    icon: Truck,
-  },
-  {
-    title: 'Captação de Veículos',
-    label: 'Comercial',
-    description: 'Motoristas, ligações, retornos, contratação e produtividade por usuário.',
-    details: ['Captação rápida', 'Leads', 'Resultados'],
-    path: '/captacao',
-    tone: 'purple',
-    icon: Users,
   },
   {
     title: 'Gestão e Relatórios',
@@ -77,7 +57,7 @@ export function PortalPage() {
           <span className="portal-brand-logo"><AyresLogo size={44} /></span>
           <div>
             <strong>AYRES</strong>
-            <span>CONTROLE LOGÍSTICO</span>
+            <span>CONTROLE DE ESTADIAS</span>
           </div>
         </div>
         <div className="portal-userbar">
@@ -90,7 +70,7 @@ export function PortalPage() {
         <div className="portal-intro">
           <span className="portal-access"><ShieldCheck size={15} /> Central de operações · {branch}</span>
           <h1>Bem-vindo, <em>{firstName}.</em></h1>
-          <p>Escolha uma área para entrar. Cada módulo abre somente as ferramentas necessárias para aquela operação.</p>
+          <p>Gerencie lançamentos, pendências, documentos e relatórios de estadias em um só lugar.</p>
           <div className="portal-note"><Clock3 size={16} /><span>Sessão segura e dados separados por filial.</span></div>
         </div>
 

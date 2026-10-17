@@ -12,8 +12,6 @@ export type AppPath =
   | '/'
   | '/dashboard'
   | '/estadias'
-  | '/embarques'
-  | '/captacao'
   | '/relatorios'
   | '/administracao'
 
@@ -21,8 +19,6 @@ const allowedPaths = new Set<AppPath>([
   '/',
   '/dashboard',
   '/estadias',
-  '/embarques',
-  '/captacao',
   '/relatorios',
   '/administracao',
 ])

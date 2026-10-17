@@ -1,43 +1,26 @@
-import { AlertTriangle, CheckCircle2, Clock3, Truck, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { PageHeader, Panel } from '../components/Ui'
 import { supabase } from '../lib/supabase'
 
 type Metrics = {
   estadiasPendentes: number
-  embarquesAtivos: number
-  captacoesHoje: number
   finalizadas: number
 }
 
 export function DashboardPage() {
   const [metrics, setMetrics] = useState<Metrics>({
     estadiasPendentes: 0,
-    embarquesAtivos: 0,
-    captacoesHoje: 0,
     finalizadas: 0,
   })
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
     Promise.all([
       supabase
         .from('estadias')
         .select('*', { count: 'exact', head: true })
         .in('status', ['pendente', 'nao_saiu'])
-        .is('deleted_at', null),
-      supabase
-        .from('embarques')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['aguardando', 'agendado'])
-        .is('deleted_at', null),
-      supabase
-        .from('captacoes')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', today.toISOString())
         .is('deleted_at', null),
       supabase
         .from('estadias')
@@ -52,9 +35,7 @@ export function DashboardPage() {
       }
       setMetrics({
         estadiasPendentes: results[0].count ?? 0,
-        embarquesAtivos: results[1].count ?? 0,
-        captacoesHoje: results[2].count ?? 0,
-        finalizadas: results[3].count ?? 0,
+        finalizadas: results[1].count ?? 0,
       })
     })
   }, [])
@@ -79,20 +60,6 @@ export function DashboardPage() {
           tone="warning"
         />
         <MetricCard
-          label="Embarques ativos"
-          value={metrics.embarquesAtivos}
-          detail="Aguardando ou agendados"
-          icon={<Truck />}
-          tone="info"
-        />
-        <MetricCard
-          label="Captações hoje"
-          value={metrics.captacoesHoje}
-          detail="Registradas desde 00:00"
-          icon={<Users />}
-          tone="accent"
-        />
-        <MetricCard
           label="Estadias finalizadas"
           value={metrics.finalizadas}
           detail="Histórico preservado"
@@ -105,7 +72,7 @@ export function DashboardPage() {
         <Panel title="Prioridades da operação">
           <div className="priority-list">
             <div><span className="priority-dot priority-dot--danger" /><strong>Urgente</strong><p>Estadias sem saída e prazos vencidos.</p></div>
-            <div><span className="priority-dot priority-dot--warning" /><strong>Atenção</strong><p>Embarques próximos do horário agendado.</p></div>
+            <div><span className="priority-dot priority-dot--warning" /><strong>Atenção</strong><p>Estadias pendentes de lançamento ou aprovação.</p></div>
             <div><span className="priority-dot priority-dot--success" /><strong>Em dia</strong><p>Registros atualizados e finalizados.</p></div>
           </div>
         </Panel>
